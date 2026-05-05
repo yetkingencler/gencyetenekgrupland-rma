@@ -115,7 +115,7 @@ export default function Dashboard() {
               <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#1e293b' }}>⚙️ Gruplar Nasıl Oluşturuldu?</h3>
                 <ul style={{ paddingLeft: '1.5rem', color: '#475569', lineHeight: 1.8 }}>
-                  <li><strong>1. Önceliklendirme:</strong> Her kullanıcının <i>"Önerilen Proje Konusu"</i> ve <i>"Hedef Kitlesi"</i> temel eşleşme vektörü (W=20 Puan) olarak belirlenir.</li>
+                  <li><strong>1. Önceliklendirme ve Tercih Puanlaması:</strong> Her kullanıcının <i>"Önerilen Proje Konusu"</i> ve <i>"Hedef Kitlesi"</i> temel eşleşme vektörü olarak belirlenir. Ardından kişilerin <strong>1., 2. ve 3. Proje Tercihleri</strong> çaprazlanarak benzer tercihlere sahip olanlar için ekstra sinerji puanları hesaplanır.</li>
                   <li><strong>2. Kapasite Kısıtlı Dağılım:</strong> Kişiler her gruba maksimum/minimum kişi sınırlarına (K-Medoids mantığıyla) dikkat edilerek en iyi merkeze (gruba) atanır.</li>
                   <li><strong>3. Swap (Takas) Optimizasyonu:</strong> İlk dağılımdan sonra on binlerce çapraz eşleştirme ihtimali taranır. Örneğin; A kişisi 1. gruptan 3. gruba geçerse genel uyum skoru artıyorsa sistem sessizce bu takası yapar. Toplamda <strong>%70'in üzerinde</strong> bir uyum başarısı elde edilmiştir.</li>
                   <li><strong>4. Dinamik Entegrasyon:</strong> Form doldurmayan katılımcılar, asıl grubun analiz skorunu ve ana eksenini (PCA) bozmadan tamamen rastgele ve homojen bir şekilde 21 gruba serpiştirilmiştir. (Tablolarda "FORM YOK" etiketiyle kırmızı şekilde vurgulanırlar).</li>
