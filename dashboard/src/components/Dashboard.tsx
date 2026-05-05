@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
-import { Target, Star, BrainCircuit, Activity, Cpu, Download, X } from 'lucide-react';
+import { Target, Star, Activity, Cpu, Download, X } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 
 interface Participant {
@@ -292,7 +292,7 @@ export default function Dashboard() {
                     paddingAngle={3}
                     dataKey="value"
                   >
-                    {pieData.map((entry, index) => (
+                    {pieData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
                     ))}
                   </Pie>
