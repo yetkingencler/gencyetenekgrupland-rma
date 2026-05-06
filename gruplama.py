@@ -17,35 +17,67 @@ col_choice2 = cols[3]
 col_choice3 = cols[4]
 col_audiences = cols[5]
 
+# Tercih odaklı konu puanlaması (yüksek ağırlık)
+TOPIC_PREFERENCE_WEIGHTS = {
+    'choice1': 90,
+    'choice2': 60,
+    'choice3': 40,
+    'recommended': 35
+}
+DUPLICATE_TOPIC_BONUS = 30
+AUDIENCE_MATCH_SCORE = 1  # Hedef kitle etkisi minimum
+TOPIC_MISMATCH_PENALTY = -35
+
+def parse_choices(row):
+    return [row[col_choice1], row[col_choice2], row[col_choice3]]
+
+def get_topic_preference_score(row, topic):
+    score = 0
+    choices = parse_choices(row)
+
+    if choices[0] == topic and topic != '':
+        score += TOPIC_PREFERENCE_WEIGHTS['choice1']
+    if choices[1] == topic and topic != '':
+        score += TOPIC_PREFERENCE_WEIGHTS['choice2']
+    if choices[2] == topic and topic != '':
+        score += TOPIC_PREFERENCE_WEIGHTS['choice3']
+    if row[col_recommended] == topic and topic != '':
+        score += TOPIC_PREFERENCE_WEIGHTS['recommended']
+
+    # Aynı konuyu birden fazla tercihte tekrar eden katılımcıları güçlendir
+    repeat_count = sum(1 for c in choices if c == topic and c != '')
+    if repeat_count >= 2:
+        score += (repeat_count - 1) * DUPLICATE_TOPIC_BONUS
+    return score
+
 # --- 1. BENZERLİK FONKSİYONU ---
 def calculate_similarity(row1, row2):
     score = 0
-    
-    # 1. ÖNCELİK: Önerilen Konu ve Hedef Kitle (En yüksek ağırlık)
+
     # Önerilen konu eşleşmesi
     if row1[col_recommended] == row2[col_recommended] and row1[col_recommended] != '':
-        score += 20
-        
-    # Hedef Kitleler eşleşmesi (Virgülle ayrılmış değerleri parçalayıp küme olarak kesiştirelim)
+        score += 30
+
+    # Tercih konuları (sıralı, yüksek ağırlık)
+    if row1[col_choice1] == row2[col_choice1] and row1[col_choice1] != '':
+        score += 40
+    if row1[col_choice2] == row2[col_choice2] and row1[col_choice2] != '':
+        score += 24
+    if row1[col_choice3] == row2[col_choice3] and row1[col_choice3] != '':
+        score += 12
+
+    # Çapraz tercih eşleşmeleri (boş değerler hariç)
+    choices1 = {c for c in parse_choices(row1) if c}
+    choices2 = {c for c in parse_choices(row2) if c}
+    common_choices = len(choices1.intersection(choices2))
+    score += common_choices * 8
+
+    # Hedef Kitleler eşleşmesi (minimum etki)
     aud1 = set([x.strip() for x in row1[col_audiences].split(',') if x.strip()])
     aud2 = set([x.strip() for x in row2[col_audiences].split(',') if x.strip()])
     common_aud = len(aud1.intersection(aud2))
-    score += common_aud * 20 
-        
-    # SONRAKİ ÖNCELİKLER: 1.Tercih, 2.Tercih, 3.Tercih sıralaması
-    if row1[col_choice1] == row2[col_choice1] and row1[col_choice1] != '':
-        score += 10 
-    if row1[col_choice2] == row2[col_choice2] and row1[col_choice2] != '':
-        score += 7
-    if row1[col_choice3] == row2[col_choice3] and row1[col_choice3] != '':
-        score += 4
-        
-    # Çapraz eşleşmeler (Ortak alanların sayısına göre bonus puan)
-    choices1 = {row1[col_choice1], row1[col_choice2], row1[col_choice3]}
-    choices2 = {row2[col_choice1], row2[col_choice2], row2[col_choice3]}
-    common_choices = len(choices1.intersection(choices2))
-    score += common_choices * 2
-    
+    score += common_aud * AUDIENCE_MATCH_SCORE
+
     return score
 
 n = len(df)
@@ -98,12 +130,10 @@ for i in range(num_groups):
     
     for candidate in unassigned:
         row = df.iloc[candidate]
-        score = 0
-        if row[col_recommended] == profile['topic']:
-            score += 10
+        score = get_topic_preference_score(row, profile['topic'])
         if profile['audience'] in row[col_audiences]:
-            score += 5
-            
+            score += AUDIENCE_MATCH_SCORE
+
         if score > best_score:
             best_score = score
             best_seed = candidate
@@ -135,13 +165,18 @@ while unassigned:
         else:
             avg_sim = np.mean([sim_matrix[person, m] for m in members])
             
-        # Grupta tanımlı profile uygunluk bonusu
+        # Grupta tanımlı profile uygunluk bonusu (tercih bazlı güçlü eşleştirme)
         profile = group_profiles[g_idx]
         person_row = df.iloc[person]
-        if person_row[col_recommended] == profile['topic']:
-            avg_sim += 30 # Çok yüksek bir ağırlık veriyoruz ki kendi konusuna gitsin
+        topic_score = get_topic_preference_score(person_row, profile['topic'])
+        avg_sim += topic_score
+
+        if topic_score == 0:
+            # Kişi bu konuya hiç ilgi belirtmediyse güçlü ceza uygula
+            avg_sim += TOPIC_MISMATCH_PENALTY
+
         if profile['audience'] in person_row[col_audiences]:
-            avg_sim += 15
+            avg_sim += AUDIENCE_MATCH_SCORE
             
         if avg_sim > best_sim:
             best_sim = avg_sim
@@ -161,6 +196,20 @@ while unassigned:
 def get_person_group_sim(person, group_members, sim_mat):
     if len(group_members) == 0: return 0
     return sum(sim_mat[person, m] for m in group_members if m != person)
+
+def get_assignment_score(person, group_idx, groups_dict, sim_mat):
+    members = groups_dict[group_idx]
+    if len(members) == 0:
+        avg_sim = 0
+    else:
+        avg_sim = np.mean([sim_mat[person, m] for m in members if m != person]) if any(m != person for m in members) else 0
+
+    row = df.iloc[person]
+    profile = group_profiles[group_idx]
+    topic_score = get_topic_preference_score(row, profile['topic'])
+    audience_score = AUDIENCE_MATCH_SCORE if profile['audience'] in row[col_audiences] else 0
+    mismatch_penalty = TOPIC_MISMATCH_PENALTY if topic_score == 0 else 0
+    return avg_sim + topic_score + audience_score + mismatch_penalty
 
 def calculate_quality_score(groups_dict, sim_mat):
     total_score = 0
@@ -196,11 +245,17 @@ while improvement and iteration < max_iterations:
                     g1_others = [x for x in groups[g1_idx] if x != m1]
                     g2_others = [x for x in groups[g2_idx] if x != m2]
                     
-                    current_sim = get_person_group_sim(m1, g1_others, sim_matrix) + \
-                                  get_person_group_sim(m2, g2_others, sim_matrix)
-                                  
-                    new_sim = get_person_group_sim(m1, g2_others, sim_matrix) + \
-                              get_person_group_sim(m2, g1_others, sim_matrix)
+                    # Swap kararını sadece benzerlik değil, tercih-profil uyumuna göre de ver
+                    temp_groups = {k: list(v) for k, v in groups.items()}
+                    temp_groups[g1_idx] = list(g1_others) + [m1]
+                    temp_groups[g2_idx] = list(g2_others) + [m2]
+                    current_sim = get_assignment_score(m1, g1_idx, temp_groups, sim_matrix) + \
+                                  get_assignment_score(m2, g2_idx, temp_groups, sim_matrix)
+
+                    temp_groups[g1_idx] = list(g1_others) + [m2]
+                    temp_groups[g2_idx] = list(g2_others) + [m1]
+                    new_sim = get_assignment_score(m1, g2_idx, temp_groups, sim_matrix) + \
+                              get_assignment_score(m2, g1_idx, temp_groups, sim_matrix)
                               
                     if new_sim > current_sim:
                         # Takas yap
@@ -307,8 +362,9 @@ try:
     
     algoritma_metni = (
         "Algoritma, oluşturulan 21 gruba baştan 7 proje konusunun her birinden 3'er tane olacak şekilde sabit profiller (Konu ve Hedef Kitle) atar. "
-        "Katılımcılar gruplara dağıtılırken, kişinin önerilen konusu ile grubun atanan konusu örtüşüyorsa yüksek bonus puan alır (+30). "
-        "Ayrıca kişinin tercih ettiği hedef kitle ile grubun kitle odak noktası örtüşüyorsa ek puan (+15) verilir. "
+        "Katılımcılar gruplara dağıtılırken tercih konuları ana belirleyicidir: 1. tercih (+90), 2. tercih (+60), 3. tercih (+40), önerilen konu (+35) "
+        "ve aynı konuyu birden çok tercihte tekrar etme bonusu uygulanır. Bu sayede konu tercihi güçlü şekilde korunur. "
+        "Hedef kitle eşleşmesi bilinçli olarak minimum etkide tutulur (+1). "
         "Kapasite kısıtlamaları dâhilinde, herkesin en uygun gruba düşmesi ve genel uyumun en yüksek seviyede tutulması sağlanır."
     )
     worksheet_info.merge_range('A4:D7', algoritma_metni, text_format)
