@@ -169,16 +169,6 @@ export default function Dashboard() {
             <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h2 style={{ fontSize: '1.5rem', color: '#0f172a', margin: 0 }}>{selectedGroup} Kümesi ({groupData.length} Kişi)</h2>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  {randomMembersCount > 0 && (
-                    <div style={{ fontSize: '0.9rem', color: '#ef4444', fontWeight: 600 }}>
-                      {randomMembersCount} Kişi Rastgele Eklendi
-                    </div>
-                  )}
-                  <div className="match-badge">
-                    Optimizasyon Oranı: %{topicMatchRate}
-                  </div>
-                </div>
               </div>
               
               {/* Group Profile Header */}
