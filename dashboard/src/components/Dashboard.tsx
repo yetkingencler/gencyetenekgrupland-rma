@@ -72,7 +72,6 @@ export default function Dashboard() {
   const groupData = data.filter(d => d['Grup No'] === selectedGroup);
   
   // Real members for calculating accurate stats
-  const realMembers = groupData.filter(d => !d['Çözdüğün Testte Sana Önerilen Proje Konusu']?.includes('Form Doldurmadı'));
 
   return (
     <div className="container">
