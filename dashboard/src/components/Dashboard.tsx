@@ -28,6 +28,7 @@ export default function Dashboard() {
     return localStorage.getItem(MODAL_PREF_KEY) !== 'true';
   });
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [showGroupMapModal, setShowGroupMapModal] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,6 +77,16 @@ export default function Dashboard() {
   }
 
   const groupData = data.filter(d => d['Grup No'] === selectedGroup);
+  const groupMapData = groups
+    .map((groupNo) => {
+      const first = data.find((d) => d['Grup No'] === groupNo);
+      return {
+        groupNo,
+        topic: first?.['Atanan Konu'] || '-',
+        audience: first?.['Atanan Hedef Kitle'] || '-',
+      };
+    })
+    .filter((item) => item.groupNo);
 
   const closeModal = () => {
     if (dontShowAgain) {
@@ -138,15 +149,68 @@ export default function Dashboard() {
           <Cpu className="w-8 h-8 text-blue-600" />
           Genç Yetenek Gelişim Programı Gruplandırması
         </h1>
-        <a 
-          href="/YetGen_Gruplar.xlsx" 
-          download="YetGen_Grup_Dagitimlari.xlsx"
-          className="download-btn"
-        >
-          <Download className="w-5 h-5" />
-          Tüm Grupları Excel Olarak İndir
-        </a>
+        <div className="header-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'nowrap' }}>
+          <button
+            type="button"
+            className="download-btn"
+            onClick={() => setShowGroupMapModal(true)}
+            style={{ background: '#0f172a', whiteSpace: 'nowrap', width: 'auto', flex: '0 0 auto', display: 'inline-flex' }}
+          >
+            <Target className="w-5 h-5" />
+            Grup / Konu / Kitle Tablosu
+          </button>
+          <a
+            href="/YetGen_Gruplar.xlsx"
+            download="YetGen_Grup_Dagitimlari.xlsx"
+            className="download-btn"
+            style={{ whiteSpace: 'nowrap', width: 'auto', flex: '0 0 auto', display: 'inline-flex' }}
+          >
+            <Download className="w-5 h-5" />
+            Tüm Grupları Excel Olarak İndir
+          </a>
+        </div>
       </header>
+
+      {showGroupMapModal && (
+        <div className="modal-overlay">
+          <div className="modal-content glass" style={{ maxWidth: '900px' }}>
+            <button className="modal-close" onClick={() => setShowGroupMapModal(false)}>
+              <X className="w-6 h-6 text-slate-400" />
+            </button>
+            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.5rem', color: '#0f172a', marginBottom: '0.25rem' }}>
+                Grup - Konu - Hedef Kitle Eşleşmeleri
+              </h2>
+              <p style={{ color: '#64748b', margin: 0 }}>
+                Tüm grupların atanmış konu ve hedef kitle dağılımı
+              </p>
+            </div>
+            <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc' }}>
+                    <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>Grup</th>
+                    <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>Atanan Konu</th>
+                    <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>Atanan Hedef Kitle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupMapData.map((item) => (
+                    <tr key={item.groupNo}>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f1f5f9', fontWeight: 700 }}>{item.groupNo}</td>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>{item.topic}</td>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>{item.audience}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button className="modal-btn" onClick={() => setShowGroupMapModal(false)} style={{ marginTop: '1rem' }}>
+              Kapat
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Timeline Group Selector */}
       <div className="timeline-container glass">

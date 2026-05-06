@@ -83,6 +83,19 @@ def calculate_similarity(row1, row2):
 n = len(df)
 print(f"Toplam okunan kişi sayısı: {n}")
 
+# Form doldurmayanları erken oku: hedef kapasiteyi toplam kişiye göre kuracağız
+try:
+    df_empty = pd.read_csv('form doldurmayanlar .csv')
+    empty_names = df_empty.iloc[:, 0].dropna().astype(str).tolist()
+except Exception:
+    df_empty = None
+    empty_names = []
+
+empty_count = len(empty_names)
+total_participants = n + empty_count
+print(f"Form doldurmayan kişi sayısı: {empty_count}")
+print(f"Toplam kişi sayısı (genel): {total_participants}")
+
 # --- 2. BENZERLİK MATRİSİNİ HESAPLAMA ---
 sim_matrix = np.zeros((n, n))
 for i in range(n):
@@ -92,10 +105,17 @@ for i in range(n):
         sim_matrix[j, i] = sim
 
 # --- 3. KISITLI (EŞİT DAĞILIMLI) KÜMELEME ---
-num_groups = 21 # Kullanıcı 21 grup oluşturulmasını istedi
-TARGET_GROUP_SIZE = 25
-TOTAL_CAPACITY = num_groups * TARGET_GROUP_SIZE
-MAX_GROUP_SIZE = TARGET_GROUP_SIZE
+num_groups = 21  # 7 konu x 3 grup
+
+def build_balanced_targets(total_count, group_count):
+    base = total_count // group_count
+    remainder = total_count % group_count
+    return [base + (1 if i < remainder else 0) for i in range(group_count)]
+
+# Faz 1: yalnızca form dolduranlar eşit dağılsın (255 => 12/13 gibi)
+form_targets = build_balanced_targets(n, num_groups)
+# Faz 2: tüm katılımcılar eşit dağılsın (form + form doldurmayan)
+total_targets = build_balanced_targets(total_participants, num_groups)
 
 group_profiles = {
     0: {'topic': 'Eşit ve Özgür Toplum', 'audience': 'Gençler'},
@@ -158,7 +178,7 @@ while unassigned:
     best_sim = -1
     
     for g_idx, members in groups.items():
-        if len(members) >= MAX_GROUP_SIZE:
+        if len(members) >= form_targets[g_idx]:
             continue # Grup dolduysa atla
             
         # Kişinin gruptaki diğer kişilerle ortalama benzerliğini bulalım
@@ -285,52 +305,48 @@ for g_idx, members in groups.items():
         row_data['Atanan Hedef Kitle'] = profile['audience']
         results.append(row_data)
 
-# Form doldurmayanları kapasiteye göre dağıt
+# Form doldurmayanları homojen şekilde dağıt (kalan kotaya göre)
 try:
     import random
-    df_empty = pd.read_csv('form doldurmayanlar .csv')
-    empty_names = df_empty.iloc[:, 0].tolist() # İlk sütun isimler
-    
-    random.seed(42) # Aynı rastgele dağılımı korumak için
+    random.seed(42)
     random.shuffle(empty_names)
 
+    def group_cohesion_score(g_idx):
+        """Form dolduran üyelerin grup içi ortalama benzerlik skoru."""
+        real_members = [m for m in groups[g_idx] if m != -1]
+        if len(real_members) <= 1:
+            return 0
+        g_sim = sum(
+            sim_matrix[real_members[i], real_members[j]]
+            for i in range(len(real_members))
+            for j in range(i + 1, len(real_members))
+        )
+        g_pairs = (len(real_members) * (len(real_members) - 1)) / 2
+        return g_sim / g_pairs if g_pairs > 0 else 0
+
     for name in empty_names:
-        # O an en az dolu ama kapasitesi dolmamış grubu seç
-        available_groups = [g for g in range(num_groups) if len(groups[g]) < TARGET_GROUP_SIZE]
+        available_groups = [g for g in range(num_groups) if len(groups[g]) < total_targets[g]]
         if not available_groups:
-            # Tüm gruplar doluysa kişiyi en yüksek grup uyum skoruna sahip gruba ekle (tek grup 26 olabilir)
-            best_group = 0
-            best_group_score = -1
-            for g in range(num_groups):
-                real_members = [m for m in groups[g] if m != -1]
-                if len(real_members) > 1:
-                    g_sim = sum(
-                        sim_matrix[real_members[i], real_members[j]]
-                        for i in range(len(real_members))
-                        for j in range(i + 1, len(real_members))
-                    )
-                    g_pairs = (len(real_members) * (len(real_members) - 1)) / 2
-                    avg_g_sim = g_sim / g_pairs
-                else:
-                    avg_g_sim = 0
-
-                if avg_g_sim > best_group_score:
-                    best_group_score = avg_g_sim
-                    best_group = g
-            g_idx = best_group
+            # Güvenlik: hedefler doluysa en az kişili gruba bırak
+            g_idx = min(range(num_groups), key=lambda g: len(groups[g]))
         else:
-            g_idx = min(available_groups, key=lambda g: len(groups[g]))
+            # Önce homojenlik (kalan kapasite), eşitlikte grup uyum skoru yüksek olana ata
+            g_idx = max(available_groups, key=lambda g: (
+                total_targets[g] - len(groups[g]),
+                group_cohesion_score(g),
+                -len(groups[g])
+            ))
 
-        row_data = {col: 'Form Doldurmadı - Rastgele Atandı' for col in df.columns}
+        row_data = {col: 'Form Doldurmadı - Homojen Atandı' for col in df.columns}
         row_data[df.columns[0]] = name
         row_data['Grup No'] = f"Grup {g_idx + 1}"
         row_data['Atanan Konu'] = group_profiles[g_idx]['topic']
         row_data['Atanan Hedef Kitle'] = group_profiles[g_idx]['audience']
-        
+
         results.append(row_data)
-        groups[g_idx].append(-1) # Gerçek kişi olmadığını belirtmek için -1 ekliyoruz
+        groups[g_idx].append(-1)  # Form doldurmayan placeholder
 except Exception as e:
-    print(f"\nForm doldurmayanlar dosyası işlenirken hata oluştu (Dosya bulunamamış olabilir): {e}")
+    print(f"\nForm doldurmayanlar dağıtılırken hata oluştu: {e}")
 
 result_df = pd.DataFrame(results)
 
