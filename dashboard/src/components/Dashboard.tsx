@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
-import { Target, Star, Activity, Cpu, Download, X } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { Target, Star, Cpu, Download, X } from 'lucide-react';
 
 interface Participant {
   'Grup No': string;
@@ -15,7 +14,7 @@ interface Participant {
   'Atanan Hedef Kitle'?: string;
 }
 
-const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#059669', '#d97706', '#0891b2'];
+
 
 export default function Dashboard() {
   const [data, setData] = useState<Participant[]>([]);
@@ -74,24 +73,6 @@ export default function Dashboard() {
   
   // Real members for calculating accurate stats
   const realMembers = groupData.filter(d => !d['Çözdüğün Testte Sana Önerilen Proje Konusu']?.includes('Form Doldurmadı'));
-  const randomMembersCount = groupData.length - realMembers.length;
-  
-  const dominantTopic = realMembers.reduce((acc, curr) => {
-    const topic = curr['Çözdüğün Testte Sana Önerilen Proje Konusu'];
-    if (topic) {
-      acc[topic] = (acc[topic] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const topTopicEntry = Object.entries(dominantTopic).sort((a,b) => b[1] - a[1])[0];
-  const topTopic = topTopicEntry ? topTopicEntry[0] : 'Belirsiz';
-  const topicMatchRate = topTopicEntry && realMembers.length > 0 ? Math.round((topTopicEntry[1] / realMembers.length) * 100) : 0;
-
-  const pieData = Object.entries(dominantTopic)
-    .map(([name, value]) => ({ name: name || 'Belirtilmemiş', value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
 
   return (
     <div className="container">
