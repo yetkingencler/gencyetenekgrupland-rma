@@ -306,21 +306,21 @@ try:
     worksheet_info.write('A3', '1. Algoritma ve Puanlama Mantığı:', subtitle_format)
     
     algoritma_metni = (
-        "Algoritma, katılımcıları form tercihlerine göre birbirleriyle eşleştirir. "
-        "En yüksek ağırlık (20 puan) 'Önerilen Konu' ve ortak 'Hedef Kitle'lere verilmiştir. "
-        "Daha sonra 1. Tercih (10p), 2. Tercih (7p) ve 3. Tercih (4p) dikkate alınarak kişilerin "
-        "birbirlerine olan 'Uyum Skoru' hesaplanır. Her kişi, kendine en çok benzeyen kişilerin olduğu gruba atanır. "
-        "Son olarak takas (swap) işlemi yapılarak grupların genel uyumu maksimuma çıkarılır."
+        "Algoritma, oluşturulan 21 gruba baştan 7 proje konusunun her birinden 3'er tane olacak şekilde sabit profiller (Konu ve Hedef Kitle) atar. "
+        "Katılımcılar gruplara dağıtılırken, kişinin önerilen konusu ile grubun atanan konusu örtüşüyorsa yüksek bonus puan alır (+30). "
+        "Ayrıca kişinin tercih ettiği hedef kitle ile grubun kitle odak noktası örtüşüyorsa ek puan (+15) verilir. "
+        "Kapasite kısıtlamaları dâhilinde, herkesin en uygun gruba düşmesi ve genel uyumun en yüksek seviyede tutulması sağlanır."
     )
-    worksheet_info.merge_range('A4:C7', algoritma_metni, text_format)
+    worksheet_info.merge_range('A4:D7', algoritma_metni, text_format)
     
-    worksheet_info.write('A9', '2. Grup Uyum Skorları ve Detaylar:', subtitle_format)
+    worksheet_info.write('A9', '2. Grup Özellikleri ve Detaylar:', subtitle_format)
     
     # Tablo başlıkları
     table_header_format = workbook.add_format({'bold': True, 'bg_color': '#D9E1F2', 'border': 1})
     worksheet_info.write('A10', 'Grup Adı', table_header_format)
     worksheet_info.write('B10', 'Kişi Sayısı', table_header_format)
-    worksheet_info.write('C10', 'Ortalama Uyum Skoru ve Açıklama', table_header_format)
+    worksheet_info.write('C10', 'Atanan Konu', table_header_format)
+    worksheet_info.write('D10', 'Atanan Hedef Kitle', table_header_format)
     
     row_idx = 10
     print("\n--- GRUP BİLGİLERİ ---")
@@ -337,26 +337,14 @@ try:
             
         print(f"Grup {g+1} içerisindeki kişi sayısı: {len(g_members)} (Form Dolduran: {len(real_members)}, Grup Uyum Skoru: {avg_g_sim:.2f})")
         
-        # Skora göre yorum
-        if avg_g_sim >= 60:
-            yorum = "Çok Yüksek Uyum (Grup üyelerinin hedefleri ve konuları neredeyse birebir örtüşüyor)"
-            color = '#C6EFCE' # Yeşil
-            font_color = '#006100'
-        elif avg_g_sim >= 40:
-            yorum = "Yüksek Uyum (Grup üyelerinin büyük bölümü ortak konularda buluşmuş)"
-            color = '#FFEB9C' # Sarı
-            font_color = '#9C5700'
-        else:
-            yorum = "Normal Uyum (Ortak tercihleri var, ancak konular biraz daha çeşitlilik gösteriyor)"
-            color = '#FFC7CE' # Kırmızı
-            font_color = '#9C0006'
-            
-        cell_format = workbook.add_format({'border': 1, 'bg_color': color, 'font_color': font_color})
+        # Skora göre yorum (Artık sadece Konu ve Kitleyi de basacağız)
+        cell_format = workbook.add_format({'border': 1, 'bg_color': '#f8fafc', 'font_color': '#334155'})
         default_format = workbook.add_format({'border': 1, 'align': 'center'})
         
         worksheet_info.write(row_idx, 0, f"Grup {g+1}", default_format)
-        worksheet_info.write(row_idx, 1, f"Toplam: {len(g_members)} (Rastgele Atanan: {len(g_members) - len(real_members)})", default_format)
-        worksheet_info.write(row_idx, 2, f"Skor: {avg_g_sim:.2f}  |  {yorum}", cell_format)
+        worksheet_info.write(row_idx, 1, f"{len(g_members)} Kişi", default_format)
+        worksheet_info.write(row_idx, 2, group_profiles[g]['topic'], cell_format)
+        worksheet_info.write(row_idx, 3, group_profiles[g]['audience'], cell_format)
         row_idx += 1
 
     writer.close()
