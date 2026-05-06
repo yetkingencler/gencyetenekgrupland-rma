@@ -11,6 +11,8 @@ interface Participant {
   'Seçmek İstediğin Proje Konusu (2. Tercih)': string;
   'Seçmek İstediğin Proje Konusu (3. Tercih)': string;
   'Çalışmak İstediğin Hedef Kitleler (Birden fazla seçim yapabilirsin.)': string;
+  'Atanan Konu'?: string;
+  'Atanan Hedef Kitle'?: string;
 }
 
 const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#059669', '#d97706', '#0891b2'];
@@ -110,18 +112,18 @@ export default function Dashboard() {
             </div>
             <div className="modal-body">
               <p style={{ fontSize: '1.1rem', color: '#334155', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-                Tüm katılımcılar analiz edildi ve gruplar başarıyla oluşturuldu! Yapay zeka algoritmamız, katılımcıları sadece rastgele değil, <strong>maksimum grup uyumunu (sinerjiyi)</strong> sağlayacak şekilde bir araya getirdi.
+                Tüm katılımcılar analiz edildi ve gruplar başarıyla oluşturuldu! Toplam 7 proje konusunun her birinden tam <strong>3'er grup</strong> oluşturularak 21 grup dengeli bir şekilde dağıtılmıştır.
               </p>
               <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#1e293b' }}>⚙️ Gruplar Nasıl Oluşturuldu?</h3>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#1e293b' }}>⚙️ Algoritma Nasıl Çalışıyor?</h3>
                 <ul style={{ paddingLeft: '1.5rem', color: '#475569', lineHeight: 1.8 }}>
-                  <li><strong>1. Önceliklendirme ve Tercih Puanlaması:</strong> Her kullanıcının <i>"Önerilen Proje Konusu"</i> ve <i>"Hedef Kitlesi"</i> temel eşleşme vektörü olarak belirlenir. Ardından kişilerin <strong>1., 2. ve 3. Proje Tercihleri</strong> çaprazlanarak benzer tercihlere sahip olanlar için ekstra sinerji puanları hesaplanır.</li>
-                  <li><strong>2. Kapasite Kısıtlı Dağılım:</strong> Kişiler her gruba maksimum/minimum kişi sınırlarına (K-Medoids mantığıyla) dikkat edilerek en iyi merkeze (gruba) atanır.</li>
-                  <li><strong>3. Swap (Takas) Optimizasyonu:</strong> İlk dağılımdan sonra on binlerce çapraz eşleştirme ihtimali taranır. Örneğin; A kişisi 1. gruptan 3. gruba geçerse genel uyum skoru artıyorsa sistem sessizce bu takası yapar. Toplamda <strong>%70'in üzerinde</strong> bir uyum başarısı elde edilmiştir.</li>
-                  <li><strong>4. Dinamik Entegrasyon:</strong> Form doldurmayan katılımcılar, asıl grubun analiz skorunu ve ana eksenini (PCA) bozmadan tamamen rastgele ve homojen bir şekilde 21 gruba serpiştirilmiştir. (Tablolarda "FORM YOK" etiketiyle kırmızı şekilde vurgulanırlar).</li>
+                  <li><strong>1. Sabit Profil Ataması:</strong> Oluşturulan 21 gruba spesifik bir Proje Konusu ve Hedef Kitle baştan atanmıştır.</li>
+                  <li><strong>2. Çekim Gücü ve Eşleşme:</strong> Algoritma kişileri dağıtırken, katılımcının tercih ettiği konu ile grubun atanan konusu örtüşüyorsa çok yüksek bir bonus eşleşme puanı (+30) verir. Böylece kişiler odaklanmak istedikleri alana yönlendirilir.</li>
+                  <li><strong>3. Kapasite Kısıtlı Kümeleme:</strong> Her grubun eşit sayıda katılımcı barındırması için maksimum grup boyutları sıkı bir şekilde sınırlandırılmıştır.</li>
+                  <li><strong>4. Entropi Düşürme:</strong> Katılımcıların 1., 2. ve 3. tercihleri gibi yan değişkenler de hesaba katılarak, kapasite sebebiyle oluşan zorunlu kaydırmalarda grup uyumu en az zarar görecek şekilde optimize edilmiştir.</li>
                 </ul>
               </div>
-              <button className="modal-btn" onClick={() => setShowModal(false)}>
+              <button className="modal-btn" onClick={() => setShowModal(false)} style={{ marginTop: '1.5rem' }}>
                 Dashboard'u İncelemeye Başla
               </button>
             </div>
@@ -160,22 +162,40 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dashboard-main-grid">
-        {/* Left Side: Table & Members */}
-        <div className="left-panel">
+      <div className="dashboard-main-content">
+        {/* Full Width: Table & Members */}
+        <div className="left-panel" style={{ width: '100%' }}>
           <div className="glass panel-content">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <h2>{selectedGroup} Kümesi ({groupData.length} Kişi)</h2>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                {randomMembersCount > 0 && (
-                  <div style={{ fontSize: '0.9rem', color: '#ef4444', fontWeight: 600 }}>
-                    {randomMembersCount} Kişi Rastgele Eklendi
+            <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.5rem', color: '#0f172a', margin: 0 }}>{selectedGroup} Kümesi ({groupData.length} Kişi)</h2>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  {randomMembersCount > 0 && (
+                    <div style={{ fontSize: '0.9rem', color: '#ef4444', fontWeight: 600 }}>
+                      {randomMembersCount} Kişi Rastgele Eklendi
+                    </div>
+                  )}
+                  <div className="match-badge">
+                    Optimizasyon Oranı: %{topicMatchRate}
                   </div>
-                )}
-                <div className="match-badge">
-                  Optimizasyon Oranı: %{topicMatchRate}
                 </div>
               </div>
+              
+              {/* Group Profile Header */}
+              {groupData.length > 0 && groupData[0]['Atanan Konu'] && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#eff6ff', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                    <Target className="w-5 h-5 text-blue-600" />
+                    <span style={{ color: '#475569', fontWeight: 600 }}>Konu:</span>
+                    <span style={{ color: '#1e293b', fontWeight: 700 }}>{groupData[0]['Atanan Konu']}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#fef3c7', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                    <Star className="w-5 h-5 text-amber-600" />
+                    <span style={{ color: '#475569', fontWeight: 600 }}>Hedef Kitle:</span>
+                    <span style={{ color: '#1e293b', fontWeight: 700 }}>{groupData[0]['Atanan Hedef Kitle']}</span>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="table-container">
@@ -251,60 +271,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right Side: Algorithm Logic & Stats */}
-        <div className="right-panel">
-          <div className="glass panel-content logic-panel">
-            <div className="logic-header">
-              <Activity className="w-6 h-6 text-blue-600" />
-              <h3>Algoritma Mantığı ve Grup Uyumu</h3>
-            </div>
-            <p className="logic-description">
-              Sistem, <strong>Kapasite Kısıtlı Kümeleme (Capacity Constrained Clustering)</strong> algoritması ile çalışmaktadır. 
-              Katılımcılar arası benzerlik matrisi, belirlenen ağırlık katsayılarına göre <strong>(W1=20, W2=10...)</strong> hesaplanır.
-            </p>
-            
-            <div className="logic-highlight glass-inner">
-              <Target className="w-5 h-5 text-emerald-500" style={{ flexShrink: 0 }} />
-              <div>
-                <strong>Ana Bileşen Analizi (PCA):</strong>
-                <span> Bu grubun model içindeki dominant ekseni <strong>"{topTopic}"</strong> olarak tespit edildi. Grup üyelerinin <strong>%{topicMatchRate}</strong>'i bu ortak vektör etrafında hizalandı.</span>
-              </div>
-            </div>
 
-            <div className="logic-highlight glass-inner">
-              <Star className="w-5 h-5 text-amber-500" style={{ flexShrink: 0 }} />
-              <div>
-                <strong>Swap (Takas) Optimizasyonu:</strong>
-                <span> Küme içi varyansı minimize etmek için algoritmik takaslar yapıldı. Çapraz eşleşmeler (1. ve 2. tercihler) hesaba katılarak grubun genel entropisi (karmaşası) düşürüldü.</span>
-              </div>
-            </div>
-
-            <h4 style={{ marginTop: '2.5rem', marginBottom: '1.5rem', color: '#1e293b', fontSize: '1.1rem' }}>Grup İçi Konu Dağılım Matrisi</h4>
-            <div style={{ height: 230, width: '100%' }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={95}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {pieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip 
-                    contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}
-                    itemStyle={{ color: '#0f172a', fontWeight: 500 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

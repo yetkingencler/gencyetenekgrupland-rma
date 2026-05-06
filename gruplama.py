@@ -63,14 +63,59 @@ for i in range(n):
 num_groups = 21 # Kullanıcı 21 grup oluşturulmasını istedi
 MAX_GROUP_SIZE = math.ceil(n / num_groups) # Her grubun alabileceği maksimum kişi sayısı
 
+group_profiles = {
+    0: {'topic': 'Eşit ve Özgür Toplum', 'audience': 'Gençler'},
+    1: {'topic': 'Eşit ve Özgür Toplum', 'audience': 'Kadınlar'},
+    2: {'topic': 'Eşit ve Özgür Toplum', 'audience': 'İstanbullular'},
+    3: {'topic': 'Etkin ve Kapsayıcı Hareketlilik', 'audience': 'İstanbullular'},
+    4: {'topic': 'Etkin ve Kapsayıcı Hareketlilik', 'audience': 'Gençler'},
+    5: {'topic': 'Etkin ve Kapsayıcı Hareketlilik', 'audience': 'Düşük gelirli gruplar'},
+    6: {'topic': 'Çevreyi Koruyan ve İklime Uyum Sağlayan Kent', 'audience': 'İstanbullular'},
+    7: {'topic': 'Çevreyi Koruyan ve İklime Uyum Sağlayan Kent', 'audience': 'Gençler'},
+    8: {'topic': 'Çevreyi Koruyan ve İklime Uyum Sağlayan Kent', 'audience': 'Kadınlar'},
+    9: {'topic': 'Herkes İçin Erişilebilir ve Adil Kentsel Olanaklar', 'audience': 'Gençler'},
+    10: {'topic': 'Herkes İçin Erişilebilir ve Adil Kentsel Olanaklar', 'audience': 'İstanbullular'},
+    11: {'topic': 'Herkes İçin Erişilebilir ve Adil Kentsel Olanaklar', 'audience': 'Kadınlar'},
+    12: {'topic': 'İyi Yaşam Sağlayan Canlı ve Duyarlı Mekanlar', 'audience': 'Kadınlar'},
+    13: {'topic': 'İyi Yaşam Sağlayan Canlı ve Duyarlı Mekanlar', 'audience': 'Gençler'},
+    14: {'topic': 'İyi Yaşam Sağlayan Canlı ve Duyarlı Mekanlar', 'audience': 'İstanbullular'},
+    15: {'topic': 'Dönüştüren ve Dayanıklı Ekonomi', 'audience': 'Gençler'},
+    16: {'topic': 'Dönüştüren ve Dayanıklı Ekonomi', 'audience': 'İstanbullular'},
+    17: {'topic': 'Dönüştüren ve Dayanıklı Ekonomi', 'audience': 'Düşük gelirli gruplar'},
+    18: {'topic': 'Bütünleşik ve Akıllı Altyapı Sistemleri', 'audience': 'Gençler'},
+    19: {'topic': 'Bütünleşik ve Akıllı Altyapı Sistemleri', 'audience': 'İstanbullular'},
+    20: {'topic': 'Bütünleşik ve Akıllı Altyapı Sistemleri', 'audience': 'Düşük gelirli gruplar'}
+}
+
 groups = {i: [] for i in range(num_groups)}
 unassigned = set(range(n))
 
-# Gruplara başlangıç noktaları atayalım (İlk kişileri sırayla atıyoruz)
-seed_indices = list(unassigned)[:num_groups]
-for i, seed in enumerate(seed_indices):
-    groups[i].append(seed)
-    unassigned.remove(seed)
+# Gruplara başlangıç noktaları atayalım (Profile en uygun kişiyi bulalım)
+for i in range(num_groups):
+    best_seed = -1
+    best_score = -1
+    profile = group_profiles[i]
+    
+    for candidate in unassigned:
+        row = df.iloc[candidate]
+        score = 0
+        if row[col_recommended] == profile['topic']:
+            score += 10
+        if profile['audience'] in row[col_audiences]:
+            score += 5
+            
+        if score > best_score:
+            best_score = score
+            best_seed = candidate
+            
+    if best_seed != -1:
+        groups[i].append(best_seed)
+        unassigned.remove(best_seed)
+    else:
+        # Uygun bulunamazsa rastgele birini ata
+        seed = list(unassigned)[0]
+        groups[i].append(seed)
+        unassigned.remove(seed)
 
 # Kalan kişileri "en çok benzedikleri" gruba atama işlemi
 while unassigned:
@@ -89,6 +134,14 @@ while unassigned:
             avg_sim = 0
         else:
             avg_sim = np.mean([sim_matrix[person, m] for m in members])
+            
+        # Grupta tanımlı profile uygunluk bonusu
+        profile = group_profiles[g_idx]
+        person_row = df.iloc[person]
+        if person_row[col_recommended] == profile['topic']:
+            avg_sim += 30 # Çok yüksek bir ağırlık veriyoruz ki kendi konusuna gitsin
+        if profile['audience'] in person_row[col_audiences]:
+            avg_sim += 15
             
         if avg_sim > best_sim:
             best_sim = avg_sim
@@ -167,9 +220,12 @@ print(f"Optimizasyon Sonrası Genel Uyum Skoru: {final_score:.2f} (Döngü sayı
 # --- 5. SONUÇLARI KAYDETME ---
 results = []
 for g_idx, members in groups.items():
+    profile = group_profiles[g_idx]
     for m in members:
         row_data = df.iloc[m].to_dict()
         row_data['Grup No'] = f"Grup {g_idx + 1}"
+        row_data['Atanan Konu'] = profile['topic']
+        row_data['Atanan Hedef Kitle'] = profile['audience']
         results.append(row_data)
 
 # Form doldurmayanları rastgele dağıt
@@ -188,6 +244,8 @@ try:
         row_data = {col: 'Form Doldurmadı - Rastgele Atandı' for col in df.columns}
         row_data[df.columns[0]] = name
         row_data['Grup No'] = f"Grup {g_idx + 1}"
+        row_data['Atanan Konu'] = group_profiles[g_idx]['topic']
+        row_data['Atanan Hedef Kitle'] = group_profiles[g_idx]['audience']
         
         results.append(row_data)
         groups[g_idx].append(-1) # Gerçek kişi olmadığını belirtmek için -1 ekliyoruz
@@ -197,7 +255,7 @@ except Exception as e:
 result_df = pd.DataFrame(results)
 
 # Kolon sıralamasını düzenle
-cols_order = ['Grup No'] + list(df.columns)
+cols_order = ['Grup No', 'Atanan Konu', 'Atanan Hedef Kitle'] + list(df.columns)
 result_df = result_df[cols_order]
 
 # Excel ve CSV olarak kaydet
