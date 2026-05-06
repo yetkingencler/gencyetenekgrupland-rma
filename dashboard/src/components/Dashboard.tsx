@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
 import { Target, Star, Cpu, Download, X } from 'lucide-react';
 
+const MODAL_PREF_KEY = 'yetgen-hide-welcome-modal';
+
 interface Participant {
   'Grup No': string;
   'İsim Soyisim': string;
@@ -21,7 +23,11 @@ export default function Dashboard() {
   const [groups, setGroups] = useState<string[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(true); // Welcome modal state
+  const [showModal, setShowModal] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem(MODAL_PREF_KEY) !== 'true';
+  });
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,6 +76,13 @@ export default function Dashboard() {
   }
 
   const groupData = data.filter(d => d['Grup No'] === selectedGroup);
+
+  const closeModal = () => {
+    if (dontShowAgain) {
+      localStorage.setItem(MODAL_PREF_KEY, 'true');
+    }
+    setShowModal(false);
+  };
   
   // Real members for calculating accurate stats
 
@@ -79,7 +92,7 @@ export default function Dashboard() {
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content glass">
-            <button className="modal-close" onClick={() => setShowModal(false)}>
+            <button className="modal-close" onClick={closeModal}>
               <X className="w-6 h-6 text-slate-400" />
             </button>
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -98,12 +111,21 @@ export default function Dashboard() {
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#1e293b' }}>⚙️ Algoritma Nasıl Çalışıyor?</h3>
                 <ul style={{ paddingLeft: '1.5rem', color: '#475569', lineHeight: 1.8 }}>
                   <li><strong>1. Sabit Profil Ataması:</strong> Oluşturulan 21 gruba spesifik bir Proje Konusu ve Hedef Kitle baştan atanmıştır.</li>
-                  <li><strong>2. Çekim Gücü ve Eşleşme:</strong> Algoritma kişileri dağıtırken, katılımcının tercih ettiği konu ile grubun atanan konusu örtüşüyorsa çok yüksek bir bonus eşleşme puanı (+30) verir. Böylece kişiler odaklanmak istedikleri alana yönlendirilir.</li>
-                  <li><strong>3. Kapasite Kısıtlı Kümeleme:</strong> Her grubun eşit sayıda katılımcı barındırması için maksimum grup boyutları sıkı bir şekilde sınırlandırılmıştır.</li>
-                  <li><strong>4. Entropi Düşürme:</strong> Katılımcıların 1., 2. ve 3. tercihleri gibi yan değişkenler de hesaba katılarak, kapasite sebebiyle oluşan zorunlu kaydırmalarda grup uyumu en az zarar görecek şekilde optimize edilmiştir.</li>
+                  <li><strong>2. Tercih Odaklı Konu Skoru:</strong> 1. tercih (+90), 2. tercih (+60), 3. tercih (+40), önerilen konu (+35) olarak ağırlıklandırılır. Aynı konuyu birden fazla tercih edenler ek bonus alır.</li>
+                  <li><strong>3. Konu Uyumsuzluğu Cezası:</strong> Katılımcı bir grubun konusuna hiç ilgi belirtmemişse güçlü ceza uygulanır. Böylece konu dışı atamalar azalır.</li>
+                  <li><strong>4. Kapasite + Akıllı Swap:</strong> Grup kapasiteleri korunur; sonrasında swap optimizasyonu yalnızca benzerliği değil tercih-profil uyumunu da iyileştirir.</li>
+                  <li><strong>5. Hedef Kitle Etkisi:</strong> Hedef kitle bilinçli olarak düşük etkide tutulur (+1) ve ana karar mekanizması konu tercihleridir.</li>
                 </ul>
               </div>
-              <button className="modal-btn" onClick={() => setShowModal(false)} style={{ marginTop: '1.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', color: '#475569', fontSize: '0.95rem' }}>
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                />
+                Bu bilgilendirmeyi tekrar gösterme
+              </label>
+              <button className="modal-btn" onClick={closeModal} style={{ marginTop: '1rem' }}>
                 Dashboard'u İncelemeye Başla
               </button>
             </div>

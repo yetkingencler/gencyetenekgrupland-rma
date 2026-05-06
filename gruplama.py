@@ -93,7 +93,9 @@ for i in range(n):
 
 # --- 3. KISITLI (EŞİT DAĞILIMLI) KÜMELEME ---
 num_groups = 21 # Kullanıcı 21 grup oluşturulmasını istedi
-MAX_GROUP_SIZE = math.ceil(n / num_groups) # Her grubun alabileceği maksimum kişi sayısı
+TARGET_GROUP_SIZE = 25
+TOTAL_CAPACITY = num_groups * TARGET_GROUP_SIZE
+MAX_GROUP_SIZE = TARGET_GROUP_SIZE
 
 group_profiles = {
     0: {'topic': 'Eşit ve Özgür Toplum', 'audience': 'Gençler'},
@@ -283,7 +285,7 @@ for g_idx, members in groups.items():
         row_data['Atanan Hedef Kitle'] = profile['audience']
         results.append(row_data)
 
-# Form doldurmayanları rastgele dağıt
+# Form doldurmayanları kapasiteye göre dağıt
 try:
     import random
     df_empty = pd.read_csv('form doldurmayanlar .csv')
@@ -291,11 +293,34 @@ try:
     
     random.seed(42) # Aynı rastgele dağılımı korumak için
     random.shuffle(empty_names)
-    
-    group_indices = list(range(21))
-    for i, name in enumerate(empty_names):
-        g_idx = group_indices[i % 21]
-        
+
+    for name in empty_names:
+        # O an en az dolu ama kapasitesi dolmamış grubu seç
+        available_groups = [g for g in range(num_groups) if len(groups[g]) < TARGET_GROUP_SIZE]
+        if not available_groups:
+            # Tüm gruplar doluysa kişiyi en yüksek grup uyum skoruna sahip gruba ekle (tek grup 26 olabilir)
+            best_group = 0
+            best_group_score = -1
+            for g in range(num_groups):
+                real_members = [m for m in groups[g] if m != -1]
+                if len(real_members) > 1:
+                    g_sim = sum(
+                        sim_matrix[real_members[i], real_members[j]]
+                        for i in range(len(real_members))
+                        for j in range(i + 1, len(real_members))
+                    )
+                    g_pairs = (len(real_members) * (len(real_members) - 1)) / 2
+                    avg_g_sim = g_sim / g_pairs
+                else:
+                    avg_g_sim = 0
+
+                if avg_g_sim > best_group_score:
+                    best_group_score = avg_g_sim
+                    best_group = g
+            g_idx = best_group
+        else:
+            g_idx = min(available_groups, key=lambda g: len(groups[g]))
+
         row_data = {col: 'Form Doldurmadı - Rastgele Atandı' for col in df.columns}
         row_data[df.columns[0]] = name
         row_data['Grup No'] = f"Grup {g_idx + 1}"
@@ -316,6 +341,11 @@ result_df = result_df[cols_order]
 # Excel ve CSV olarak kaydet
 result_df.to_csv('gruplanmis_kisiler.csv', index=False, encoding='utf-8-sig')
 print("\nVeriler 'gruplanmis_kisiler.csv' dosyasına kaydedildi.")
+
+# Dashboard'un okuduğu public data dosyasını da her çalıştırmada güncelle
+dashboard_csv_path = 'dashboard/public/data.csv'
+result_df.to_csv(dashboard_csv_path, index=False, encoding='utf-8-sig')
+print(f"Dashboard verisi '{dashboard_csv_path}' dosyasına güncellendi.")
 
 # EXCEL DOSYASI OLUŞTURMA (Her grup ayrı sayfa)
 try:
